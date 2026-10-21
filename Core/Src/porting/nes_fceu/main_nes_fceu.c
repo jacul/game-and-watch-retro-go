@@ -478,8 +478,91 @@ void FCEUD_Message(char *s)
     printf("%s", s);
 }
 
+#if NES_BATTERY_SAVE == 1
+#include "battery_journal.h"
+extern uint8_t __BATTERYFLASH_START__[], __BATTERYFLASH_END__[];
+static nes_battery_record_t battery_record;
+static uint32_t battery_rom_crc, battery_size;
+
+/* Cartridge selection and SaveGame[0..3] layout adapted from Sylverb's SD fork:
+ * https://github.com/sylverb/game-and-watch-retro-go-sd/blob/69665a17f315020411ccb95d05075808cef5b313/Core/Src/porting/nes_fceu/main_nes_fceu.c
+ * GPL-2.0. SD file I/O is replaced by a two-record external-flash journal.
+ */
+static bool battery_copy(bool load)
+{
+    size_t offset = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (!iNESCart.SaveGame[i] || !iNESCart.SaveGameLen[i]) continue;
+        size_t n = iNESCart.SaveGameLen[i];
+        if (offset + n > battery_size) return false;
+        if (load) memcpy(iNESCart.SaveGame[i], battery_record.data + offset, n);
+        else memcpy(battery_record.data + offset, iNESCart.SaveGame[i], n);
+        offset += n;
+    }
+    return offset == battery_size;
+}
+
+static void battery_flush(void)
+{
+    if (!battery_size || !battery_copy(false)) return;
+    const uint8_t *flash = __BATTERYFLASH_START__;
+    int slot = nes_battery_prepare(flash, &battery_record, battery_rom_crc, battery_size);
+    if (slot >= 0) {
+        wdog_refresh();
+        store_save(flash + slot * NES_BATTERY_SLOT_SIZE,
+                   (const uint8_t *)&battery_record,
+                   offsetof(nes_battery_record_t, data) + battery_size);
+        wdog_refresh();
+        if (!nes_battery_valid((const void *)(flash + slot * NES_BATTERY_SLOT_SIZE),
+                               battery_rom_crc, battery_size)) {
+            printf("Battery RAM write failed; previous record retained.\n");
+            return;
+        }
+    }
+}
+
+static void battery_init(void)
+{
+    battery_size = 0;
+    if (!GameInfo || (GameInfo->type != GIT_CART && GameInfo->type != GIT_VSUNI) ||
+        !iNESCart.battery || !iNESCart.SaveGame[0] || !iNESCart.SaveGameLen[0]) return;
+    for (int i = 0; i < 4; ++i)
+        if (iNESCart.SaveGame[i]) {
+            if (iNESCart.SaveGameLen[i] > NES_BATTERY_MAX - battery_size) {
+                battery_size = 0;
+                return;
+            }
+            battery_size += iNESCart.SaveGameLen[i];
+        }
+    assert((size_t)((uintptr_t)__BATTERYFLASH_END__ - (uintptr_t)__BATTERYFLASH_START__) == 2 * NES_BATTERY_SLOT_SIZE);
+    /* Stored ROM bytes identify the exact cartridge, independent of its title. */
+    battery_rom_crc = nes_battery_crc(ROM_DATA, ROM_DATA_LENGTH);
+    wdog_refresh();
+    int slot = nes_battery_latest(__BATTERYFLASH_START__, battery_rom_crc, battery_size);
+    if (slot >= 0) {
+        const nes_battery_record_t *saved = (const void *)(__BATTERYFLASH_START__ + slot * NES_BATTERY_SLOT_SIZE);
+        memcpy(battery_record.data, saved->data, battery_size);
+        battery_copy(true);
+    }
+    odroid_system_set_battery_save_hook(&battery_flush);
+}
+
+/* Battery writes occur only on explicit save, exit or sleep.
+ * Do not scan or erase flash during active gameplay.
+ */
+static bool battery_save_cb(odroid_dialog_choice_t *option, odroid_dialog_event_t event, uint32_t repeat)
+{
+    if (event == ODROID_DIALOG_ENTER) battery_flush();
+    return event == ODROID_DIALOG_ENTER;
+}
+#else
+#define battery_init() ((void)0)
+#define battery_flush() ((void)0)
+#endif
+
 static bool SaveState(char *pathName)
 {
+    battery_flush();
     if (ACTIVE_FILE->save_size > 0) {
 #if OFF_SAVESTATE==1
         if (strcmp(pathName,"1") == 0) {
@@ -1082,6 +1165,9 @@ int app_main_nes_fceu(uint8_t load_state, uint8_t start_paused, uint8_t save_slo
 
     AddExState(&gnw_save_data, ~0, 0, 0);
 
+    /* Restore cartridge RAM before a snapshot can override it. */
+    battery_init();
+
     if (load_state) {
 #if OFF_SAVESTATE==1
         if (save_slot == 1) {
@@ -1122,6 +1208,9 @@ int app_main_nes_fceu(uint8_t load_state, uint8_t start_paused, uint8_t save_slo
 
     while(1) {
         odroid_dialog_choice_t options[] = {
+#if NES_BATTERY_SAVE == 1
+            {303, "Save battery RAM", NULL, battery_size ? 1 : -1, &battery_save_cb},
+#endif
             // {101, "More...", "", 1, &advanced_settings_cb},
             {302, curr_lang->s_Palette, palette_values_text, 1, &palette_update_cb},
             {302, curr_lang->s_Reset, NULL, 1, &reset_cb},

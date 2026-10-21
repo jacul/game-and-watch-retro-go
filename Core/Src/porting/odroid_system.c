@@ -5,6 +5,7 @@
 #include "gw_linker.h"
 #include "gui.h"
 #include "main.h"
+#include "common.h"
 
 static rg_app_desc_t currentApp;
 static runtime_stats_t statistics;
@@ -12,6 +13,12 @@ static runtime_counters_t counters;
 static uint skip;
 
 static sleep_hook_t sleep_hook = NULL;
+static sleep_hook_t battery_save_hook = NULL;
+
+void odroid_system_set_battery_save_hook(void (*callback)(void))
+{
+    battery_save_hook = callback;
+}
 
 #define TURBOS_SPEED 10
 
@@ -83,6 +90,17 @@ bool odroid_system_emu_save_state(int slot)
     return true;
 };
 
+void odroid_system_save_on_power(void)
+{
+    if (odroid_settings_SaveOnPower_get()) {
+#if OFF_SAVESTATE == 1
+        odroid_system_emu_save_state(1);
+#else
+        odroid_system_emu_save_state(0);
+#endif
+    }
+}
+
 IRAM_ATTR void odroid_system_tick(uint skippedFrame, uint fullFrame, uint busyTime)
 {
     if (skippedFrame) counters.skippedFrames++;
@@ -101,6 +119,8 @@ IRAM_ATTR void odroid_system_tick(uint skippedFrame, uint fullFrame, uint busyTi
 
 void odroid_system_switch_app(int app)
 {
+    if (battery_save_hook) battery_save_hook();
+    battery_save_hook = NULL;
     printf("%s: Switching to app %d.\n", __FUNCTION__, app);
 
     switch (app) {
@@ -163,11 +183,13 @@ void odroid_system_set_sleep_hook(sleep_hook_t callback)
 
 void odroid_system_sleep(void)
 {
+    if (battery_save_hook) battery_save_hook();
     if (sleep_hook != NULL)
     {
         sleep_hook();
     }
-    odroid_settings_StartupFile_set(ACTIVE_FILE);
+    // With snapshot saving disabled, do not automatically resume an older snapshot.
+    odroid_settings_StartupFile_set(odroid_settings_SaveOnPower_get() ? ACTIVE_FILE : NULL);
 
     // odroid_settings_commit();
     gui_save_current_tab();

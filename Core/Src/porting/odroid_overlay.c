@@ -38,6 +38,7 @@ int odroid_overlay_game_menu(odroid_dialog_choice_t *extra_options, void_callbac
 #include "odroid_system.h"
 #include "odroid_overlay.h"
 #include "main.h"
+#include "common.h"
 #include "rom_manager.h"
 #include "bitmaps.h"
 #include "gui.h"
@@ -769,12 +770,7 @@ int odroid_overlay_dialog(const char *header, odroid_dialog_choice_t *options, i
             else if (joystick.values[ODROID_INPUT_POWER]) // G&W POWER button
             {
                 sel = -1;
-#if OFF_SAVESTATE == 1
-                // Slot 1 is a common slot used only for power off/power on
-                odroid_system_emu_save_state(1);
-#else
-                odroid_system_emu_save_state(0);
-#endif
+                odroid_system_save_on_power();
                 odroid_system_sleep();
                 break;
             }
@@ -1032,16 +1028,26 @@ static bool turbo_buttons_update_cb(odroid_dialog_choice_t *option, odroid_dialo
     return event == ODROID_DIALOG_ENTER;
 }
 
+static bool save_on_power_update_cb(odroid_dialog_choice_t *option, odroid_dialog_event_t event, uint32_t repeat)
+{
+    if (event == ODROID_DIALOG_PREV || event == ODROID_DIALOG_NEXT)
+        odroid_settings_SaveOnPower_set(!odroid_settings_SaveOnPower_get());
+    strcpy(option->value, odroid_settings_SaveOnPower_get() ? "On" : "Off");
+    return event == ODROID_DIALOG_ENTER;
+}
+
 int odroid_overlay_settings_menu(odroid_dialog_choice_t *extra_options, void_callback_t repaint)
 {
     static char bright_value[25];
     static char volume_value[25];
     static char turbo_value[25];
+    static char power_value[4];
 
     odroid_dialog_choice_t options[MAX_OPTIONS_COUNT] = {                         //
         {0, curr_lang->s_Brightness, bright_value, 1, &brightness_update_cb}, //
         {1, curr_lang->s_Volume, volume_value, 1, &volume_update_cb},
         {2, curr_lang->s_Turbo_Button, turbo_value, 1, &turbo_buttons_update_cb},
+        {3, "Save snapshot on POWER", power_value, 1, &save_on_power_update_cb},
 
         ODROID_DIALOG_CHOICE_LAST, //
     };
@@ -1330,12 +1336,7 @@ int odroid_overlay_game_menu(odroid_dialog_choice_t *extra_options, void_callbac
         break;
 #endif
     case 90:
-#if OFF_SAVESTATE == 1
-        // Slot 1 is a common slot used only for power off/power on
-        odroid_system_emu_save_state(1);
-#else
-        odroid_system_emu_save_state(0);
-#endif
+        odroid_system_save_on_power();
         odroid_system_sleep();
         break;
     case 100:

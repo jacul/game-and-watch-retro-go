@@ -48,6 +48,9 @@ endif
 # Disable system logos splash screen at startup
 DISABLE_SPLASH_SCREEN ?= 0
 
+# Separate NES battery RAM: two checked 12 KiB flash records (8 KiB RAM maximum).
+NES_BATTERY_SAVE ?= 0
+
 # Default NES emulator is fceumm
 FORCE_NOFRENDO ?= 0 
 NOFRENDO_PARAM := --nofrendo=$(FORCE_NOFRENDO)
@@ -454,6 +457,7 @@ C_DEFS +=  \
 -DCHEAT_CODES=$(CHEAT_CODES) \
 -DFORCE_NOFRENDO=$(FORCE_NOFRENDO) \
 -DDISABLE_SPLASH_SCREEN=$(DISABLE_SPLASH_SCREEN) \
+-DNES_BATTERY_SAVE=$(NES_BATTERY_SAVE) \
 -DTARGET_GNW \
 -DNO_EMBEDDED_SAMPLES \
 -D__LIBRETRO__ \
@@ -516,6 +520,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 LDFLAGS += -Wl,--defsym=__EXTFLASH_OFFSET__=$(EXTFLASH_OFFSET)
 LDFLAGS += -Wl,--defsym=__EXTFLASH_TOTAL_LENGTH__=$(EXTFLASH_SIZE)
 LDFLAGS += -Wl,--defsym=ENABLE_SCREENSHOT=$(ENABLE_SCREENSHOT)
+LDFLAGS += -Wl,--defsym=__BATTERYFLASH_LENGTH__=$(if $(filter 1,$(NES_BATTERY_SAVE)),24576,0)
 
 LDFLAGS += -Wl,--defsym=__INTFLASH__=$(INTFLASH_ADDRESS)
 

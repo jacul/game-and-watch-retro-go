@@ -1,0 +1,20 @@
+{
+  "source": "mario-battery-guard-fix/gw_retro_go.elf",
+  "elf_sha256": "63488b2b20599867c4bc488b4a1b18bf27dfd9d56b29004ac912d62a47c30e7d",
+  "symbols": {
+    "__CONFIGFLASH_START__": 2416963584,
+    "__configflash_end__": 2416963700,
+    "__configflash_start__": 2416963584,
+    "__BATTERYFLASH_END__": 2416893952,
+    "__BATTERYFLASH_START__": 2416869376,
+    "__fbflash_end__": 2416967680,
+    "__fbflash_start__": 2416967680,
+    "__FBFLASH_END__": 2416967680,
+    "__SAVEFLASH_END__": 2416963584,
+    "__FBFLASH_START__": 2416967680,
+    "__CONFIGFLASH_END__": 2416967680,
+    "__OFFSAVEFLASH_START__": 2416893952,
+    "__OFFSAVEFLASH_END__": 2416893952,
+    "__SAVEFLASH_START__": 2416893952
+  }
+}

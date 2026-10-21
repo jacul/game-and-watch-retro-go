@@ -4,6 +4,7 @@
 #include "odroid_system.h"
 #include "odroid_settings.h"
 #include "main.h"
+#include "common.h"
 #include "rg_i18n.h"
 #include "appid.h"
 #include "game_genie.h"
@@ -54,7 +55,7 @@ typedef struct persistent_config {
     uint8_t version;
 
     uint8_t backlight;
-    uint8_t start_action;
+    uint8_t start_action; // Low 7 bits: startup action; bit 7: skip POWER snapshot.
     uint8_t volume;
     uint8_t font_size;
     uint8_t theme;
@@ -424,11 +425,22 @@ void odroid_settings_Backlight_set(int32_t value)
 
 ODROID_START_ACTION odroid_settings_StartAction_get()
 {
-    return persistent_config_ram.start_action;
+    return persistent_config_ram.start_action & 0x7f;
 }
 void odroid_settings_StartAction_set(ODROID_START_ACTION value)
 {
-    persistent_config_ram.start_action = value;
+    persistent_config_ram.start_action = (persistent_config_ram.start_action & 0x80) | ((uint8_t)value & 0x7f);
+}
+
+
+bool odroid_settings_SaveOnPower_get(void)
+{
+    return (persistent_config_ram.start_action & 0x80) == 0;
+}
+
+void odroid_settings_SaveOnPower_set(bool enabled)
+{
+    persistent_config_ram.start_action = (persistent_config_ram.start_action & 0x7f) | (enabled ? 0 : 0x80);
 }
 
 

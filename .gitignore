@@ -51,3 +51,7 @@ venv
 .clang-format
 .idea/
 cmake-build-debug
+
+# Local device assets and environments for our checkpoint
+.local/
+.venv/

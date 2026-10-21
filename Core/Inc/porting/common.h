@@ -93,3 +93,11 @@ void draw_border_smw(pixel_t * fb);
  * In-place nearest neighbor upscaling for smw and zelda3.
  */
 void snes_upscale(pixel_t * fb);
+
+// Flush cartridge battery RAM before exit or sleep.
+void odroid_system_set_battery_save_hook(void (*callback)(void));
+
+// POWER always sleeps; this option controls only its automatic snapshot.
+bool odroid_settings_SaveOnPower_get(void);
+void odroid_settings_SaveOnPower_set(bool enabled);
+void odroid_system_save_on_power(void);

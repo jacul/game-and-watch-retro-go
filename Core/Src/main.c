@@ -229,34 +229,49 @@ int _write(int file, char *ptr, int len)
 }
 #endif
 
+#if NES_BATTERY_SAVE == 1
+extern uint8_t __BATTERYFLASH_START__[], __BATTERYFLASH_END__[];
+#endif
+extern uint8_t __CONFIGFLASH_START__[], __CONFIGFLASH_END__[];
+extern uint8_t __FBFLASH_START__[], __FBFLASH_END__[];
+
+static void store_invalidate_cache(const uint8_t *flash_ptr, uint32_t size)
+{
+  // Flash writes bypass the CPU cache. Discard old mapped data before readback.
+  assert(size <= INT32_MAX - 31u);
+  SCB_InvalidateDCache_by_Addr((uint32_t *)(uintptr_t)flash_ptr, (size + 31u) & ~31u);
+}
+
+
 void store_erase(const uint8_t *flash_ptr, uint32_t size)
 {
-  // Disable clear data when save address is zero
-  if (flash_ptr == 0) {
+  if (flash_ptr == NULL) {
     return;
   }
-  // Only allow addresses in the areas meant for erasing and writing.
+
+  uintptr_t start = (uintptr_t)flash_ptr;
+  uint32_t save_address = start - (uintptr_t)&__EXTFLASH_BASE__;
+  assert((save_address & (4 * 1024 - 1)) == 0);
+
+  // Validate the complete erased sector range, including any padding.
+  assert(size <= UINT32_MAX - 4095u);
+  size = (size + 4095u) & ~4095u;
+  assert(size <= UINTPTR_MAX - start);
+  uintptr_t end = start + size;
   assert(
-    ((flash_ptr >= &__OFFSAVEFLASH_START__)   && ((flash_ptr + size) <= &__OFFSAVEFLASH_END__)) ||
-    ((flash_ptr >= &__SAVEFLASH_START__)   && ((flash_ptr + size) <= &__SAVEFLASH_END__)) ||
-    ((flash_ptr >= &__configflash_start__) && ((flash_ptr + size) <= &__configflash_end__)) ||
-    ((flash_ptr >= &__fbflash_start__) && ((flash_ptr + size) <= &__fbflash_end__))
+#if NES_BATTERY_SAVE == 1
+    ((start >= (uintptr_t)__BATTERYFLASH_START__) && (end <= (uintptr_t)__BATTERYFLASH_END__)) ||
+#endif
+    ((start >= (uintptr_t)&__OFFSAVEFLASH_START__) && (end <= (uintptr_t)&__OFFSAVEFLASH_END__)) ||
+    ((start >= (uintptr_t)&__SAVEFLASH_START__) && (end <= (uintptr_t)&__SAVEFLASH_END__)) ||
+    ((start >= (uintptr_t)__CONFIGFLASH_START__) && (end <= (uintptr_t)__CONFIGFLASH_END__)) ||
+    ((start >= (uintptr_t)__FBFLASH_START__) && (end <= (uintptr_t)__FBFLASH_END__))
   );
-
-  // Convert mem mapped pointer to flash address
-  uint32_t save_address = flash_ptr - &__EXTFLASH_BASE__;
-
-  // Only allow 4kB aligned pointers
-  assert((save_address & (4*1024 - 1)) == 0);
-
-  // Round size up to nearest 4K
-  if ((size & 0xfff) != 0) {
-    size += 0x1000 - (size & 0xfff);
-  }
 
   OSPI_DisableMemoryMappedMode();
   OSPI_EraseSync(save_address, size);
   OSPI_EnableMemoryMappedMode();
+  store_invalidate_cache(flash_ptr, size);
 }
 
 void store_save(const uint8_t *flash_ptr, const uint8_t *data, size_t size)
@@ -285,6 +300,7 @@ void store_save(const uint8_t *flash_ptr, const uint8_t *data, size_t size)
   OSPI_DisableMemoryMappedMode();
   OSPI_Program(save_address, data, size);
   OSPI_EnableMemoryMappedMode();
+  store_invalidate_cache(flash_ptr, size);
 }
 
 void boot_magic_set(uint32_t magic)

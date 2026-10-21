@@ -237,9 +237,15 @@ void common_emu_input_loop(odroid_gamepad_state_t *joystick, odroid_dialog_choic
             else if(joystick->values[ODROID_INPUT_B]){
                 // Load State
                 last_key = ODROID_INPUT_B;
-                odroid_system_emu_load_state(0);
+                odroid_audio_mute(true);
+                if (odroid_overlay_confirm("Load saved state?", false, _repaint) == 1) {
+                    odroid_system_emu_load_state(0);
+                    set_ingame_overlay(INGAME_OVERLAY_LOAD);
+                }
+                odroid_audio_mute(false);
+                clear_frames = 2;
                 common_emu_state.startup_frames = 0;
-                set_ingame_overlay(INGAME_OVERLAY_LOAD);
+                cpumon_stats.last_busy = 0;
             }
             else if(joystick->values[ODROID_INPUT_X]){
                 last_key = ODROID_INPUT_X;
@@ -309,13 +315,9 @@ void common_emu_input_loop(odroid_gamepad_state_t *joystick, odroid_dialog_choic
     }
 
     if (joystick->values[ODROID_INPUT_POWER]) {
-        // Save-state and poweroff
+        // Save a snapshot if enabled, then sleep. Battery RAM flushes in sleep.
         audio_stop_playing();
-#if OFF_SAVESTATE==1
-        app->saveState("1");
-#else
-        app->saveState("0");
-#endif
+        odroid_system_save_on_power();
         odroid_system_sleep();
     }
 
