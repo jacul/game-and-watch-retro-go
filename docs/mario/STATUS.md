@@ -30,6 +30,7 @@ Manual snapshots remain available in either mode.
 | Settings erase sector | 0xFF000–0xFFFFF | 4,096 |
 
 Snapshot addresses depend on the ROM selection.
+The save-preserving installer accepts only its validated layout.
 
 ## Validation scope
 

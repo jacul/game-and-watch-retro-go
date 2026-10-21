@@ -1,0 +1,6 @@
+{
+  "name": "Arm GNU Toolchain 14.2.Rel1",
+  "archive": "arm-gnu-toolchain-14.2.rel1-darwin-arm64-arm-none-eabi.tar.xz",
+  "archive_sha256": "c7c78ffab9bebfce91d99d3c24da6bf4b81c01e16cf551eb2ff9f25b9e0a3818",
+  "compiler_subdirectory": "arm-gnu-toolchain-14.2.rel1-darwin-arm64-arm-none-eabi/bin"
+}

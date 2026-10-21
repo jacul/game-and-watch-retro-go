@@ -1,0 +1,18 @@
+{
+  "mario-stock-1mb": {
+    "flash_size": 1048576,
+    "erase_size": 4096,
+    "external_base": 2415919104,
+    "internal_base": 134217728,
+    "internal_bank_size": 262144,
+    "mutable_start": 950272,
+    "battery_end": 974848,
+    "config_start": 1044480,
+    "startup_pointer_offset": 16,
+    "save_symbols": {
+      "SAVE_NES_2": [974848, 28672],
+      "SAVE_NES_1": [1003520, 24576],
+      "SAVE_NES_0": [1028096, 16384]
+    }
+  }
+}

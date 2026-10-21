@@ -20,8 +20,22 @@ Saving another battery-backed game can overwrite the previous game’s save.
 ## Build
 
 Place compatible ROMs in `roms/nes/`. The build must fit the device’s flash.
-See the [upstream build guide](README.md#how-to-build) for setup.
-See [Mario validation](docs/mario/STATUS.md) for save behavior and tested limits.
+Use Arm GNU Toolchain 14.2.Rel1 and Python 3.11 with
+[the pinned dependencies](config/mario-requirements.lock.txt). See the
+[upstream build guide](README.md#how-to-build) for general setup.
+
+```sh
+git submodule update --init --recursive
+./scripts/test_mario_custom.sh
+GCC_PATH=/path/to/toolchain/bin ./scripts/build_mario_custom.sh
+```
+
+## Install
+
+To flash without losing existing saves, use the installer in
+[device tools](tools/gnw/README.md). [Mario status](docs/mario/STATUS.md) covers
+behaviour and limits, and [device notes](docs/mario/DEVICE-NOTES.md) covers
+troubleshooting.
 
 ## Credits
 
