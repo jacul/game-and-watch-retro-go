@@ -50,6 +50,9 @@ DISABLE_SPLASH_SCREEN ?= 0
 
 # Separate NES battery RAM: two checked 12 KiB flash records (8 KiB RAM maximum).
 NES_BATTERY_SAVE ?= 0
+# Separate 8 KiB Game Boy cartridge RAM journal (no RTC cartridges).
+GB_BATTERY_SAVE ?= 0
+GB_BATTERY_BYTES ?= 24576
 
 # Default NES emulator is fceumm
 FORCE_NOFRENDO ?= 0 
@@ -458,6 +461,7 @@ C_DEFS +=  \
 -DFORCE_NOFRENDO=$(FORCE_NOFRENDO) \
 -DDISABLE_SPLASH_SCREEN=$(DISABLE_SPLASH_SCREEN) \
 -DNES_BATTERY_SAVE=$(NES_BATTERY_SAVE) \
+-DGB_BATTERY_SAVE=$(GB_BATTERY_SAVE) \
 -DTARGET_GNW \
 -DNO_EMBEDDED_SAMPLES \
 -D__LIBRETRO__ \
@@ -520,7 +524,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 LDFLAGS += -Wl,--defsym=__EXTFLASH_OFFSET__=$(EXTFLASH_OFFSET)
 LDFLAGS += -Wl,--defsym=__EXTFLASH_TOTAL_LENGTH__=$(EXTFLASH_SIZE)
 LDFLAGS += -Wl,--defsym=ENABLE_SCREENSHOT=$(ENABLE_SCREENSHOT)
-LDFLAGS += -Wl,--defsym=__BATTERYFLASH_LENGTH__=$(if $(filter 1,$(NES_BATTERY_SAVE)),24576,0)
+LDFLAGS += -Wl,--defsym=__BATTERYFLASH_LENGTH__=$(shell echo $$(( $(if $(filter 1,$(NES_BATTERY_SAVE)),24576,0) + $(if $(filter 1,$(GB_BATTERY_SAVE)),$(GB_BATTERY_BYTES),0) )))
 
 LDFLAGS += -Wl,--defsym=__INTFLASH__=$(INTFLASH_ADDRESS)
 
@@ -599,7 +603,7 @@ $(BUILD_DIR)/rom_files.txt: FORCE | $(BUILD_DIR)
 	$(V)$(ECHO) [ BASH ] Checking for updated roms
 	$(V)$(PYTHON3) scripts/update_rom_files.py build/rom_files.txt roms
 
-$(BUILD_DIR)/roms.a: $(BUILD_DIR)/rom_files.txt parse_roms.py fceumm-go/nesmapper.py scripts/update_rom_files.py $(CUSTOM_BUILD_CONFIG)
+$(BUILD_DIR)/roms.a: $(BUILD_DIR)/rom_files.txt parse_roms.py fceumm-go/nesmapper.py scripts/update_rom_files.py $(CUSTOM_BUILD_CONFIG) $(wildcard roms/*.json roms/*/*.ggcodes)
 	$(V)$(ECHO) [ PYTHON3 ] $(notdir $<)
 	$(V)$(PYTHON3) parse_roms.py --flash-size $(EXTFLASH_SIZE) $(SAVE_PARAM) $(COMPRESS_PARAM) $(CODEPAGE_PARAM) $(COVERFLOW_PARAM) $(JPG_QUALITY_PARAM) $(NOFRENDO_PARAM) --off_saveflash=$(OFF_SAVESTATE)
 

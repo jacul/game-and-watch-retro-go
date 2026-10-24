@@ -23,7 +23,7 @@ def symbols(path):
         return {s.name: (s['st_value'], s['st_size']) for s in table.iter_symbols()}
 
 
-def verify(old_elf, new_elf, external, profile):
+def verify_layout(old_elf, new_elf, external, profile):
     old, new = symbols(old_elf), symbols(new_elf)
     for name, (offset, size) in profile['save_symbols'].items():
         wanted = (profile['external_base'] + offset, size)
@@ -37,5 +37,9 @@ def verify(old_elf, new_elf, external, profile):
                          ('__CONFIGFLASH_END__', profile['flash_size'])]:
         require(new[name][0] == profile['external_base'] + offset, 'Profile mismatch: ' + name)
     require(len(padded(external, profile['erase_size'])) <= profile['mutable_start'], 'Image overlaps save storage')
+
+
+def verify(old_elf, new_elf, external, profile):
+    verify_layout(old_elf, new_elf, external, profile)
     require(rom_identities(old_elf, profile) == rom_identities(new_elf, profile),
             'ROM identity or save mapping changed; a separate save migration is required')

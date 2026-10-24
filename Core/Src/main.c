@@ -229,7 +229,7 @@ int _write(int file, char *ptr, int len)
 }
 #endif
 
-#if NES_BATTERY_SAVE == 1
+#if NES_BATTERY_SAVE == 1 || GB_BATTERY_SAVE == 1
 extern uint8_t __BATTERYFLASH_START__[], __BATTERYFLASH_END__[];
 #endif
 extern uint8_t __CONFIGFLASH_START__[], __CONFIGFLASH_END__[];
@@ -259,7 +259,7 @@ void store_erase(const uint8_t *flash_ptr, uint32_t size)
   assert(size <= UINTPTR_MAX - start);
   uintptr_t end = start + size;
   assert(
-#if NES_BATTERY_SAVE == 1
+#if NES_BATTERY_SAVE == 1 || GB_BATTERY_SAVE == 1
     ((start >= (uintptr_t)__BATTERYFLASH_START__) && (end <= (uintptr_t)__BATTERYFLASH_END__)) ||
 #endif
     ((start >= (uintptr_t)&__OFFSAVEFLASH_START__) && (end <= (uintptr_t)&__OFFSAVEFLASH_END__)) ||

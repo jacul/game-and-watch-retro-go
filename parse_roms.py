@@ -1226,7 +1226,7 @@ class ROMParser:
             ["gb", "gbc"],
             "SAVE_GB_",
             romdef["gb"],
-            None,
+            "GG_GB_",
             current_id,
             args.compress,
             args.compress_gb_speed,

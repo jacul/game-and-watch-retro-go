@@ -2,7 +2,7 @@
 
 A fork of [Sylverb's Retro-Go](https://github.com/sylverb/game-and-watch-retro-go)
 focused on reliable NES saves. Tested on a Mario Game & Watch with the original
-1 MiB flash. Zelda is not supported yet.
+1 MiB flash. The [Zelda profile](docs/zelda/STATUS.md) is prepared for validation.
 
 ## What's different
 
@@ -14,7 +14,7 @@ focused on reliable NES saves. Tested on a Mario Game & Watch with the original
 - **Quick-load asks first**, with No selected.
 - **Flash writing and caching fixes**, covered by regression tests.
 
-Battery saves currently support one NES game with up to 8 KiB of cartridge RAM.
+The Mario profile supports one NES game with up to 8 KiB of cartridge RAM.
 Saving another battery-backed game can overwrite the previous game’s save.
 
 ## Build

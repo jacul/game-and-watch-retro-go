@@ -25,6 +25,40 @@
 #include "appid.h"
 #include "gw_malloc.h"
 
+#if CHEAT_CODES == 1
+#include "gb_cheats.h"
+static gb_cheat_list_t gb_cheats;
+/* Read-only banks use RAM copies. The two CPU ROM windows need separate copies. */
+static uint8_t gb_cheat_shadow[2][16384];
+
+uint8_t *gb_cheat_rom_bank(unsigned bank, uint8_t *data, bool writable)
+{
+    return gb_cheat_patch(&gb_cheats, bank, data, writable, gb_cheat_shadow[bank != 0]);
+}
+
+static void gb_cheats_init(void)
+{
+    memset(&gb_cheats, 0, sizeof(gb_cheats));
+    for (unsigned i = 0; i < MAX_CHEAT_CODES && i < ACTIVE_FILE->cheat_count; ++i) {
+        if (odroid_settings_ActiveGameGenieCodes_is_enabled(ACTIVE_FILE->id, i) &&
+            !gb_cheat_add_group(&gb_cheats, ACTIVE_FILE->cheat_codes[i])) {
+            printf("Rejected unsupported Game Boy cheat group.\n");
+        }
+    }
+}
+
+static void gb_cheats_frame(void)
+{
+    for (unsigned i = 0; i < gb_cheats.count; ++i) {
+        const gb_cheat_t *code = &gb_cheats.codes[i];
+        if (!code->rom) writeb(code->address, code->value);
+    }
+}
+#else
+#define gb_cheats_init() ((void)0)
+#define gb_cheats_frame() ((void)0)
+#endif
+
 #define NVS_KEY_SAVE_SRAM "sram"
 
 // Use 60Hz for GB
@@ -361,10 +395,87 @@ static void blit_and_swap(void)
     lcd_swap();
 }
 
+#if GB_BATTERY_SAVE == 1
+#include "gb_battery_journal.h"
+extern uint8_t __BATTERYFLASH_START__[], __BATTERYFLASH_END__[];
+static gb_battery_record_t gb_battery_record;
+static const uint8_t *gb_battery_flash;
+static uint32_t gb_battery_rom_crc, gb_battery_size;
+
+static const uint8_t *gb_battery_base(void)
+{
+    return gb_battery_flash;
+}
+
+static void gb_battery_flush(void)
+{
+    if (!gb_battery_size) return;
+    memcpy(gb_battery_record.data, ram.sbank, gb_battery_size);
+    const uint8_t *flash = gb_battery_base();
+    int slot = gb_battery_prepare(flash, &gb_battery_record, gb_battery_rom_crc, gb_battery_size);
+    if (slot >= 0) {
+        wdog_refresh();
+        store_save(flash + slot * gb_battery_record_span(gb_battery_size), (const uint8_t *)&gb_battery_record,
+                   offsetof(gb_battery_record_t, data) + gb_battery_size);
+        wdog_refresh();
+        if (!gb_battery_valid((const void *)(flash + slot * gb_battery_record_span(gb_battery_size)),
+                               gb_battery_rom_crc, gb_battery_size))
+            printf("Game Boy battery write failed; previous record retained.\n");
+    }
+}
+
+static void gb_battery_init(void)
+{
+    gb_battery_size = 0;
+    gb_battery_flash = NULL;
+    if (!mbc.batt || mbc.rtc || (mbc.ramsize != 1 && mbc.ramsize != 4) || !ram.sbank) return;
+    const rom_system_t *system = ACTIVE_FILE->system;
+    uint32_t offset = NES_BATTERY_SAVE ? 2 * NES_BATTERY_SLOT_SIZE : 0;
+    bool found = false;
+    for (uint32_t i = 0; i < system->roms_count; ++i) {
+        const retro_emulator_file_t *file = &system->roms[i];
+        /* Bank 0 remains uncompressed in the supported LZMA ROM format. */
+        if (file->size < 0x150) return;
+        uint8_t code = file->address[0x149];
+        if (code > 3) return;
+        uint32_t size = code == 3 ? 32768u : 8192u;
+        uint32_t span = 2 * gb_battery_record_span(size);
+        assert(offset + span <= (uintptr_t)__BATTERYFLASH_END__ - (uintptr_t)__BATTERYFLASH_START__);
+        if (file == ACTIVE_FILE) {
+            if (size != (uint32_t)mbc.ramsize * 8192u) return;
+            gb_battery_flash = __BATTERYFLASH_START__ + offset;
+            gb_battery_size = size;
+            found = true;
+            break;
+        }
+        offset += span;
+    }
+    if (!found) return;
+    gb_battery_rom_crc = nes_battery_crc(ROM_DATA, ROM_DATA_LENGTH);
+    wdog_refresh();
+    int slot = gb_battery_latest(gb_battery_base(), gb_battery_rom_crc, gb_battery_size);
+    if (slot >= 0) {
+        const gb_battery_record_t *record = (const void *)(gb_battery_base() + slot * gb_battery_record_span(gb_battery_size));
+        memcpy(ram.sbank, record->data, gb_battery_size);
+    }
+    odroid_system_set_battery_save_hook(&gb_battery_flush);
+}
+
+static bool gb_battery_save_cb(odroid_dialog_choice_t *option, odroid_dialog_event_t event, uint32_t repeat)
+{
+    if (event == ODROID_DIALOG_ENTER) gb_battery_flush();
+    return event == ODROID_DIALOG_ENTER;
+}
+#else
+#define gb_battery_init() ((void)0)
+#define gb_battery_flush() ((void)0)
+#endif
+
 #define STATE_SAVE_BUFFER_LENGTH 1024 * 192
 
 static bool SaveState(char *pathName)
 {
+    gb_battery_flush();
     printf("Saving state...\n");
 
     // Use GB_ROM_SRAM_CACHE (which points to _GB_ROM_UNPACK_BUFFER)
@@ -530,8 +641,10 @@ rg_app_desc_t * init(uint8_t load_state, uint8_t save_slot)
     //saveSRAM = odroid_settings_app_int32_get(NVS_KEY_SAVE_SRAM, 0);
     saveSRAM = false;
 
-    // Load ROM
+    // Select cheats before loading any ROM bank.
+    gb_cheats_init();
     loader_init(NULL);
+    rom_loadbank(0);
 
     // RTC
     memset(&rtc, 0, sizeof(rtc));
@@ -562,6 +675,7 @@ rg_app_desc_t * init(uint8_t load_state, uint8_t save_slot)
     rg_app_desc_t *app = odroid_system_get_app();
 
     emu_init();
+    gb_battery_init();
 
     pal_set_dmg(odroid_settings_Palette_get());
 
@@ -602,6 +716,9 @@ void app_main_gb(uint8_t load_state, uint8_t start_paused, uint8_t save_slot)
         char palette_values[16];
         snprintf(palette_values, sizeof(palette_values), "%s", "7/7");
         odroid_dialog_choice_t options[] = {
+#if GB_BATTERY_SAVE == 1
+            {303, "Save battery RAM", NULL, gb_battery_size ? 1 : -1, &gb_battery_save_cb},
+#endif
             {300, curr_lang->s_Palette, (char *)palette_values, hw.cgb ? -1 : 1, &palette_update_cb},
             {300, curr_lang->s_Reset, NULL, 1, &reset_cb},
             // {301, "More...", "", 1, &advanced_settings_cb},
@@ -621,6 +738,7 @@ void app_main_gb(uint8_t load_state, uint8_t start_paused, uint8_t save_slot)
         pad_set(PAD_A, joystick.values[ODROID_INPUT_A]);
         pad_set(PAD_B, joystick.values[ODROID_INPUT_B]);
 
+        gb_cheats_frame();
         emu_run(drawFrame);
 
         if (saveSRAM)

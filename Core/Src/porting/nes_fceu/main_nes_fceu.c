@@ -534,7 +534,7 @@ static void battery_init(void)
             }
             battery_size += iNESCart.SaveGameLen[i];
         }
-    assert((size_t)((uintptr_t)__BATTERYFLASH_END__ - (uintptr_t)__BATTERYFLASH_START__) == 2 * NES_BATTERY_SLOT_SIZE);
+    assert((size_t)((uintptr_t)__BATTERYFLASH_END__ - (uintptr_t)__BATTERYFLASH_START__) >= 2 * NES_BATTERY_SLOT_SIZE);
     /* Stored ROM bytes identify the exact cartridge, independent of its title. */
     battery_rom_crc = nes_battery_crc(ROM_DATA, ROM_DATA_LENGTH);
     wdog_refresh();
@@ -1049,6 +1049,13 @@ static int GGisvalid(const char *code)
    return 1;
 }
 
+static int cheat_hex(const char *text, size_t size)
+{
+    for (size_t i = 0; i < size; ++i)
+        if (!isxdigit((unsigned char)text[i])) return 0;
+    return 1;
+}
+
 void apply_cheat_code(const char *cheatcode) {
     uint16 a;
     uint8  v;
@@ -1057,13 +1064,16 @@ void apply_cheat_code(const char *cheatcode) {
     char temp[256];
     char *codepart;
 
+    if (strlen(cheatcode) >= sizeof(temp)) return;
     strcpy(temp, cheatcode);
     codepart = strtok(temp, "+,;._ ");
 
     while (codepart)
     {
+        type = 1;
         size_t codepart_len = strlen(codepart);
-        if ((codepart_len == 7) && (codepart[4]==':'))
+        if ((codepart_len == 7) && (codepart[4]==':') &&
+            cheat_hex(codepart, 4) && cheat_hex(codepart + 5, 2))
         {
             /* raw code in xxxx:xx format */
             printf("Cheat code added: '%s' (Raw)\n", codepart);
@@ -1073,10 +1083,11 @@ void apply_cheat_code(const char *cheatcode) {
             c = -1;
             /* Zero-page addressing modes don't go through the normal read/write handlers in FCEU, so
             * we must do the old hacky method of RAM cheats. */
-            if (a < 0x0100) type = 0;
+            if (a < 0x8000 && c == -1) type = 0;
             FCEUI_AddCheat(NULL, a, v, c, type);
         }
-        else if ((codepart_len == 10) && (codepart[4] == '?') && (codepart[7] == ':'))
+        else if ((codepart_len == 10) && (codepart[4] == '?') && (codepart[7] == ':') &&
+                 cheat_hex(codepart, 4) && cheat_hex(codepart + 5, 2) && cheat_hex(codepart + 8, 2))
         {
             /* raw code in xxxx?xx:xx */
             printf("Cheat code added: '%s' (Raw)\n", codepart);
@@ -1087,7 +1098,7 @@ void apply_cheat_code(const char *cheatcode) {
             c = strtoul(codepart + 5, NULL, 16);
             /* Zero-page addressing modes don't go through the normal read/write handlers in FCEU, so
             * we must do the old hacky method of RAM cheats. */
-            if (a < 0x0100) type = 0;
+            if (a < 0x8000 && c == -1) type = 0;
             FCEUI_AddCheat(NULL, a, v, c, type);
         }
         else if (GGisvalid(codepart) && FCEUI_DecodeGG(codepart, &a, &v, &c))
@@ -1095,7 +1106,7 @@ void apply_cheat_code(const char *cheatcode) {
             FCEUI_AddCheat(NULL, a, v, c, type);
             printf("Cheat code added: '%s' (GG)\n", codepart);
         }
-        else if (FCEUI_DecodePAR(codepart, &a, &v, &c, &type))
+        else if (codepart_len == 8 && cheat_hex(codepart, 8) && FCEUI_DecodePAR(codepart, &a, &v, &c, &type))
         {
             FCEUI_AddCheat(NULL, a, v, c, type);
             printf("Cheat code added: '%s' (PAR)\n", codepart);

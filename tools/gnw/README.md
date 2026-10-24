@@ -78,3 +78,14 @@ It never writes a device. This is separate from the ordinary update installer.
 On macOS, tools/gnw/crash_ocr.swift reads a supplied photo file with local Vision
 OCR. Small crash text still needs visual verification.
 It does not capture screens or control apps.
+
+## Specialist migration tools
+
+The source tree also includes Zelda capture, preparation, migration, and installation tools.
+See [Zelda source support](../../docs/zelda/STATUS.md) for their scope and configuration requirements.
+These tools use device-specific layouts and a different package format from the Mario update installer.
+
+tools.gnw.update_mario_tank handles an explicit Mario ROM replacement and battery-save transfer.
+It clears affected snapshots and checks retained cartridge identities separately.
+Its build wrapper reads GNW_MARIO_ROM_CONFIG or an ignored local ROM configuration.
+Keep ROM selections and device records local. Do not reuse a migration plan for another ROM layout.
