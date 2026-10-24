@@ -1,11 +1,60 @@
+# Retro-Go for Game & Watch — native macOS support
+
+This fork provides a tested native build flow for **Apple Silicon Macs**.
+Build firmware directly on macOS without a Raspberry Pi or Docker.
+
+The validated build flow targets **Mario Game & Watch with the original 1 MiB flash**.
+Intel Macs require separate validation. See [Zelda source support](docs/zelda/STATUS.md) for the experimental Zelda tools.
+
+## macOS quick start
+
+Install Apple's Command Line Tools and Python 3.11.8 or later within Python 3.11.
+See the [macOS setup guide](docs/MACOS.md) for prerequisites and full instructions.
+
+```sh
+git clone --recurse-submodules https://github.com/jacul/game-and-watch-retro-go.git
+cd game-and-watch-retro-go
+./scripts/setup_macos.sh
+```
+
+Place compatible ROMs that you can lawfully use in `roms/nes/`, then run:
+
+```sh
+./scripts/test_mario_custom.sh
+./scripts/build_mario_custom.sh
+.venv/bin/python -m tools.gnw.package --output .local/packages/mario-update-01
+```
+
+Setup downloads the pinned Arm compiler, verifies its checksum, and installs the pinned Python dependencies.
+The package command checks that the firmware binaries match their ELF.
+These commands build and package firmware without connecting to hardware.
+
+## Changes in this fork
+
+- Native macOS setup, build, package creation, and CI checks.
+- NES battery saves, configurable POWER behavior, and quick-load confirmation.
+- Firmware update checks for ROM identity, save layout, and image integrity.
+
+See [custom firmware behavior and limits](CUSTOM-README.md), [device tools](tools/gnw/README.md), and [Mario validation](docs/mario/STATUS.md).
+
+## Credits and license
+
+This fork builds on work by [kbeckmann](https://github.com/kbeckmann/game-and-watch-retro-go),
+[olderzeus](https://github.com/olderzeus/game-and-watch-retro-go), and [Sylverb](https://github.com/sylverb/game-and-watch-retro-go).
+The original emulator collection is [Retro-Go](https://github.com/ducalex/retro-go).
+See [LICENSE](LICENSE) and the component notices for licensing and attribution.
+
+<details>
+<summary>Upstream documentation from Sylverb and earlier contributors</summary>
+
+The reference below retains upstream features and build instructions.
+Use the macOS guide above for this fork's validated native build flow.
+
 ![](assets/gnw.gif)
 
 If you are looking for the SD Card mod, check https://github.com/sylverb/game-and-watch-retro-go-sd
 
 If you are looking for the most up to date flash only mod, check [filesystem_wip](https://github.com/sylverb/game-and-watch-retro-go/tree/filesystem_wip) branch
-
-# Support
-You can support my (sylverb) work and get beta versions of new emulators on https://www.patreon.com/sylverb
 
 # NewUI howto
 Please run `make help` to see more information.
@@ -14,7 +63,8 @@ Please run `make help` to see more information.
 
 :exclamation::exclamation::exclamation: 任何时候都 **不要** 连接 stlink 的 VCC 和 Game & Watch 主板的 VDD 脚 :exclamation::exclamation::exclamation:
 
-一般情况下只需要连接 GND，SWDIO，SWCLK 3个针脚即可。
+Follow your probe's connection requirements, including target-voltage sensing when required.
+Do not assume three wires are sufficient.
 
 来自[apple524](https://github.com/apple524)的 ubuntu 刷机攻略：
 [Game & Watch 刷机完全教程](https://apple524.github.io/2022/04/03/g-w-hack/)
@@ -523,3 +573,5 @@ Please join the [Discord](https://discord.gg/vVcwrrHTNJ).
 ## LICENSE
 
 This project is licensed under the GPLv2. Some components are also available under the MIT license. Respective copyrights apply to each component.
+
+</details>
