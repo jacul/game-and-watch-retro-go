@@ -566,6 +566,8 @@ ZELDA3_OBJECTS = $(addprefix $(BUILD_DIR)/zelda3/,$(notdir $(ZELDA3_C_SOURCES:.c
 SMW_OBJECTS = $(addprefix $(BUILD_DIR)/smw/,$(notdir $(SMW_C_SOURCES:.c=.o)))
 TAMA_OBJECTS = $(addprefix $(BUILD_DIR)/tama/,$(notdir $(TAMA_C_SOURCES:.c=.o)))
 
+$(OBJECTS) $(GNUBOY_OBJECTS) $(NES_OBJECTS) $(NES_FCEU_OBJECTS) $(SMSPLUSGX_OBJECTS) $(PCE_OBJECTS) $(GW_OBJECTS) $(MSX_OBJECTS) $(WSV_OBJECTS) $(MD_OBJECTS) $(A7800_OBJECTS) $(AMSTRAD_OBJECTS) $(ZELDA3_OBJECTS) $(SMW_OBJECTS) $(TAMA_OBJECTS): $(CUSTOM_BUILD_CONFIG)
+
 vpath %.c $(sort $(dir $(C_SOURCES) $(NES_C_SOURCES) $(NES_FCEU_C_SOURCES) $(GNUBOY_C_SOURCES) $(SMSPLUSGX_C_SOURCES) $(PCE_C_SOURCES) $(MSX_C_SOURCES) $(GW_C_SOURCES) $(WSV_C_SOURCES) $(MD_C_SOURCES) $(A7800_C_SOURCES) $(AMSTRAD_C_SOURCES) $(ZELDA3_C_SOURCES) $(SMW_C_SOURCES) $(TAMA_C_SOURCES) $(SDK_C_SOURCES)))
 # list of ASM program objects
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(SDK_ASM_SOURCES:.s=.o)))
@@ -595,9 +597,9 @@ $(BUILD_DIR)/core/rg_main.o: Core/Inc/githash.h
 # Run parse_roms.py to generate information about the roms
 $(BUILD_DIR)/rom_files.txt: FORCE | $(BUILD_DIR)
 	$(V)$(ECHO) [ BASH ] Checking for updated roms
-	$(V)./scripts/update_rom_files.sh build/rom_files.txt roms/gb roms/nes roms/sms roms/gg roms/col roms/pce roms/sg roms/msx roms/gw roms/wsv roms/md roms/a7800 roms/amstrad roms/tama
+	$(V)$(PYTHON3) scripts/update_rom_files.py build/rom_files.txt roms
 
-$(BUILD_DIR)/roms.a: $(BUILD_DIR)/rom_files.txt parse_roms.py
+$(BUILD_DIR)/roms.a: $(BUILD_DIR)/rom_files.txt parse_roms.py fceumm-go/nesmapper.py scripts/update_rom_files.py $(CUSTOM_BUILD_CONFIG)
 	$(V)$(ECHO) [ PYTHON3 ] $(notdir $<)
 	$(V)$(PYTHON3) parse_roms.py --flash-size $(EXTFLASH_SIZE) $(SAVE_PARAM) $(COMPRESS_PARAM) $(CODEPAGE_PARAM) $(COVERFLOW_PARAM) $(JPG_QUALITY_PARAM) $(NOFRENDO_PARAM) --off_saveflash=$(OFF_SAVESTATE)
 
@@ -1223,8 +1225,10 @@ romdef:
 # download SDK files
 #######################################
 $(SDK_DIR)/%:
-	$(V)$(ECHO) [ WGET ] $(notdir $@)
-	$(V)wget -q $(SDK_URL)/$(SDK_VERSION)/$@ -P $(dir $@)
+	$(V)$(ECHO) [ CURL ] $(notdir $@)
+	$(V)mkdir -p $(dir $@)
+	$(V)curl --fail --location --retry 3 --silent --show-error $(SDK_URL)/$(SDK_VERSION)/$@ --output $@.part
+	$(V)mv $@.part $@
 
 .PHONY: download_sdk
 download_sdk: $(SDK_HEADERS) $(SDK_C_SOURCES) $(SDK_ASM_SOURCES)

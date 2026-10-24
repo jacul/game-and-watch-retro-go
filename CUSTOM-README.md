@@ -19,6 +19,8 @@ Saving another battery-backed game can overwrite the previous game’s save.
 
 ## Build
 
+For native Apple Silicon setup, see [the macOS guide](docs/MACOS.md).
+
 Place compatible ROMs in `roms/nes/`. The build must fit the device’s flash.
 Use Arm GNU Toolchain 14.2.Rel1 and Python 3.11 with
 [the pinned dependencies](config/mario-requirements.lock.txt). See the

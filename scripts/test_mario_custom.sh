@@ -2,7 +2,8 @@
 set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
-python_cmd=${PYTHON3:-"$repo_root/.local/venv/bin/python"}
+python_cmd=${PYTHON3:-"$repo_root/.venv/bin/python"}
+if [ ! -x "$python_cmd" ]; then python_cmd=${PYTHON3:-"$repo_root/.local/venv/bin/python"}; fi
 if [ ! -x "$python_cmd" ]; then python_cmd=python3; fi
 test_dir=$(mktemp -d "${TMPDIR:-/tmp}/gnw-tests.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT HUP INT TERM

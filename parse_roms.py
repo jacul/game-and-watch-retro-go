@@ -1044,7 +1044,8 @@ class ROMParser:
 
         roms_compressed = find_compressed_roms()
 
-        roms_raw = [r for r in roms_raw if not contains_rom_by_name(r, roms_compressed)]
+        # Recreate compressed copies after a raw input or metadata change.
+        # Existing compressed copies must not hide updated raw ROM bytes.
         if roms_raw and compress is not None:
             pbar = tqdm(roms_raw) if tqdm else roms_raw
             for r in pbar:

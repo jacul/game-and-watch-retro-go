@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from .common import hashes, make_connection, padded, require
 from .layout import load_profile, verify
+from .elf import verify_images
 
 INTERNAL = 'gw_retro_go_intflash.bin'
 EXTERNAL = 'gw_retro_go_extflash.bin'
@@ -21,8 +22,14 @@ def read_images(directory):
     images = {}
     for name in (INTERNAL, EXTERNAL):
         data = (directory / name).read_bytes()
+        require(data, 'Empty firmware image: ' + name)
         require(hashlib.sha256(data).hexdigest() == info['sha256'][name], 'Image hash mismatch: ' + name)
         images[name] = data
+    elf = directory / 'gw_retro_go.elf'
+    if 'gw_retro_go.elf' in info['sha256']:
+        require(hashlib.sha256(elf.read_bytes()).hexdigest() == info['sha256']['gw_retro_go.elf'],
+                'ELF hash mismatch')
+    verify_images(elf, images[INTERNAL], images[EXTERNAL])
     return info, images
 
 

@@ -93,7 +93,8 @@ class ToolsTest(unittest.TestCase):
                              ('__CONFIGFLASH_START__', p['config_start']), ('__CONFIGFLASH_END__', p['flash_size']),
                              ('__BATTERYFLASH_START__', p['mutable_start']), ('__BATTERYFLASH_END__', p['battery_end'])]:
             symbols[name] = (p['external_base'] + offset, 0)
-        with patch.object(layout, 'symbols', side_effect=[symbols, dict(symbols)]):
+        with patch.object(layout, 'symbols', side_effect=[symbols, dict(symbols)]), \
+                patch.object(layout, 'rom_identities', return_value={'SAVE_NES_0': 'same ROM'}):
             layout.verify(Path('old.elf'), Path('new.elf'), b'image', p)
         changed = dict(symbols); changed['SAVE_NES_2'] = (0, 1)
         with patch.object(layout, 'symbols', side_effect=[symbols, changed]):
@@ -151,7 +152,7 @@ class ToolsTest(unittest.TestCase):
         with self.assertRaises(ValueError): extract_wram(state[:-1])
 
     def test_help_and_openocd_wrapper_without_hardware(self):
-        for module in ('helper', 'install', 'migrate_mario_snapshot'):
+        for module in ('helper', 'install', 'migrate_mario_snapshot', 'package'):
             subprocess.run([sys.executable, '-m', 'tools.gnw.' + module, '--help'], cwd=ROOT,
                            check=True, stdout=subprocess.DEVNULL)
         with tempfile.TemporaryDirectory() as directory:

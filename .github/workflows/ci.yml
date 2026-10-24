@@ -41,15 +41,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Disable macos for the time being. The github action has issues downloading large files for some reason.
-  # build-macos:
-  #   runs-on: macos-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         submodules: true
-  #     - name: Build
-  #       run: ./scripts/.ci_build_macos.sh
+  build-macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Clean macOS setup, regression tests, build, and package
+        env:
+          PYTHON3: python3
+        run: ./scripts/.ci_build_macos.sh
 
   build-docker:
     runs-on: ubuntu-latest

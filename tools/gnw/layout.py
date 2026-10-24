@@ -1,6 +1,7 @@
 """Validate a device profile and preserve its current save-layout symbols."""
 import json
 from .common import ROOT, padded, require
+from .elf import rom_identities
 
 
 def load_profile(name):
@@ -36,3 +37,5 @@ def verify(old_elf, new_elf, external, profile):
                          ('__CONFIGFLASH_END__', profile['flash_size'])]:
         require(new[name][0] == profile['external_base'] + offset, 'Profile mismatch: ' + name)
     require(len(padded(external, profile['erase_size'])) <= profile['mutable_start'], 'Image overlaps save storage')
+    require(rom_identities(old_elf, profile) == rom_identities(new_elf, profile),
+            'ROM identity or save mapping changed; a separate save migration is required')

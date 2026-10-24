@@ -4,6 +4,18 @@ Run Python commands from the repository root. Use Python 3.11 with the pinned
 config/mario-requirements.lock.txt environment, including gnwmanager 0.24.0.
 Importing these modules and using --help does not connect to USB.
 
+For native Apple Silicon setup, see [the macOS guide](../../docs/MACOS.md).
+
+## Create an installation package
+
+After a successful build:
+
+    python -m tools.gnw.package --output .local/packages/mario-update-01
+
+The command creates a new directory containing both binaries, their ELF, and build-info.json.
+It verifies that the binaries match the ELF and records hashes for all three files.
+Keep installed packages as baselines. Keep packages local because they contain ROM data.
+
 ## Voltage and OpenOCD
 
 Compile the read-only probe utility with the libusb flags from pkg-config:
@@ -36,12 +48,17 @@ this repository. Set OPENOCD explicitly to use another configuration.
 
 Each image directory must contain build-info.json with SHA256 values, both
 firmware .bin files, and gw_retro_go.elf. The expected baseline is explicit.
-Offline image and layout validation precede device access. The running helper,
+Offline binary, ELF, ROM identity, and layout checks precede device access. The running helper,
 device capacity, erase size, internal baseline and full backup hashes are checked
 before any flash write. Every battery/snapshot/settings byte is compared after
 writing. No whole-chip erase is used. Metadata records a backup session name,
 not a machine-specific absolute path. A failed post-write check leaves the
 installation-pending.json marker and verified backups for recovery.
+
+Both ELFs must retain their debug information. ROM identity checks use the compiled ROM descriptors.
+They compare ROM bytes, save-slot mappings, mapper, region, and game configuration.
+Changed ROMs require a separate save migration, even when save addresses stay unchanged.
+Historical packages without an ELF hash still require binaries that exactly match their ELF.
 
 config/device-profiles.json contains the current validated Mario memory layout.
 Add a separately validated Zelda profile later; the installer rejects unknown
